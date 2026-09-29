@@ -1,0 +1,54 @@
+name: Build WC Recharge IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  build-unsigned-ipa:
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build unsigned iOS app
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf build Payload IPA_Output
+          mkdir -p build IPA_Output
+
+          xcodebuild \
+            -project WCRechargeIOS.xcodeproj \
+            -target WCRechargeIOS \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            CONFIGURATION_BUILD_DIR="$PWD/build" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            clean build
+
+          test -d build/WCRechargeIOS.app
+          mkdir -p Payload
+          cp -R build/WCRechargeIOS.app Payload/
+          /usr/bin/zip -qry IPA_Output/WCRechargeIOS-unsigned.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: WCRechargeIOS-unsigned-IPA
+          path: IPA_Output/WCRechargeIOS-unsigned.ipa
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
