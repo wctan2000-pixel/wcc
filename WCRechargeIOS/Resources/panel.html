@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>*{box-sizing:border-box}body{margin:0;background:#0e1116;color:#eef2f7;font:16px -apple-system;padding:14px}h2{margin:4px 0}.card{background:#191e27;border:1px solid #2b3442;border-radius:14px;padding:13px;margin:12px 0}label{display:block;color:#adb8c8;font-size:13px;margin:8px 0 4px}input,select,textarea,button{width:100%;border:1px solid #3a4557;border-radius:9px;background:#11161e;color:#fff;padding:11px;font:inherit}textarea{height:90px;resize:vertical}button{background:#2878ff;border:0;font-weight:600;margin-top:9px}.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.danger{background:#a93645}.status{color:#76b7ff;min-height:20px;overflow-wrap:anywhere}.qr{width:180px;height:180px;display:block;margin:10px auto;background:white;border-radius:8px;object-fit:contain}.balance{color:#55d98b;font-size:20px;font-weight:700}small{color:#a5b0c0}</style></head>
+<body><h2>WC充值手机版</h2><small id="version">正在读取版本</small>
+<div class="card"><b>扫码登录</b><img id="qr" class="qr" alt="等待获取二维码"><div class="row"><button onclick="send('qr')">获取/刷新二维码</button><button onclick="send('copyQR')">复制二维码</button></div><div id="status" class="status" role="status">状态：空闲</div></div>
+<div class="card"><b>账号与 Q币余额</b><label>已登录账号</label><select id="qq" onchange="selectAccount()"></select><div id="bal" class="balance">未查询</div><div class="row"><button onclick="balance()">刷新余额</button><button class="danger" onclick="delAcc()">删除账号</button></div></div>
+<div class="card"><b>返利标题和自填链接</b><label>配置</label><select id="game" onchange="pickGame()"></select><label>返利标题</label><input id="title"><label>类型</label><select id="type"><option>充值官网</option><option>心悦</option></select><label>链接</label><textarea id="url" autocapitalize="off" spellcheck="false"></textarea><button onclick="saveCfg()">保存标题和链接</button><div class="row"><button onclick="newCfg()">新增配置</button><button class="danger" onclick="send('deleteConfig',{index:Number(el('game').value)})">删除配置</button></div><details><summary>导入／导出配置</summary><label>原版配置文本</label><textarea id="configText" placeholder="游戏=名称&#10;目标网址=https://…&#10;类型=充值官网"></textarea><div class="row"><button onclick="importCfg()">导入合并</button><button onclick="send('exportConfigs')">复制配置文本</button></div></details></div>
+<div class="card"><b>充值页面</b><label for="browserPlatform">充值环境</label><select id="browserPlatform" onchange="changePlatform()"><option value="ios">苹果环境</option><option value="android">安卓环境</option></select><label>本人登录信息</label><textarea id="credential" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="粘贴包含 openid 和 openkey 的内容"></textarea><button onclick="send('pasteCredential')">粘贴替换</button><div class="row"><button onclick="recharge()">打开充值页面</button><button onclick="recharge('records')">查看充值记录</button></div><small>使用已保存的链接及当前账号。请在网页核对账号和大区后操作。</small><button class="danger" onclick="send('clearSession',{qq:el('qq').value})">换号清理（保留付款QQ）</button><small>清除游戏登录信息、网页缓存和记录，保留付款 QQ 登录、保存的账号和链接。</small></div>
+<script src="login-context.js"></script>
+<script>
+'use strict';
+let configs=[],accounts={};
+const el=id=>document.getElementById(id);
+function send(action,x={}){const m=Object.assign({action},x);if(typeof AndroidNative!=='undefined'&&typeof AndroidNative.postMessage==='function')AndroidNative.postMessage(JSON.stringify(m));else if(typeof webkit!=='undefined'&&webkit.messageHandlers&&webkit.messageHandlers.native)webkit.messageHandlers.native.postMessage(m);}
+function note(text){el('status').textContent='状态：'+text;}
+window.nativeEvent=(event,value)=>{
+ if(event==='init'){configs=value.configs||[];accounts=value.accounts||{};el('version').textContent=value.version||'';el('browserPlatform').value=value.browserPlatform==='android'?'android':'ios';renderGames();renderAccounts();}
+ if(event==='configs'){configs=value;renderGames();}
+ if(event==='accounts'){accounts=value;renderAccounts();}
+ if(event==='selectedAccount'){el('qq').value=value;showBal();}
+ if(event==='selectedConfig'){el('game').value=String(value);pickGame();}
+ if(event==='qr'){if(value)el('qr').src='data:image/png;base64,'+value;else el('qr').removeAttribute('src');}
+ if(event==='status')note(value);
+ if(event==='credential')el('credential').value=value;
+};
+function option(value,text){const o=document.createElement('option');o.value=value;o.textContent=text;return o;}
+function renderGames(){const select=el('game'),old=Number(select.value);select.replaceChildren();configs.forEach((x,i)=>select.appendChild(option(String(i),x.title)));select.value=String(Number.isInteger(old)&&old>=0&&old<configs.length?old:0);pickGame();}
+function pickGame(){const x=configs[Number(el('game').value)]||{};el('title').value=x.title||'';el('type').value=x.type||'充值官网';el('url').value=x.url||'';}
+function renderAccounts(){const select=el('qq'),old=select.value,keys=Object.keys(accounts).sort((a,b)=>{const av=typeof accounts[a].balance==='number'?accounts[a].balance:-1,bv=typeof accounts[b].balance==='number'?accounts[b].balance:-1;return bv-av||a.localeCompare(b);});select.replaceChildren();if(!keys.length)select.appendChild(option('','未登录'));keys.forEach(x=>select.appendChild(option(x,typeof accounts[x].balance==='number'?x+' · '+accounts[x].balance.toFixed(2)+' QB':x)));if(keys.includes(old))select.value=old;showBal();}
+function showBal(){const a=accounts[el('qq').value];el('bal').textContent=a&&typeof a.balance==='number'?a.balance.toFixed(2)+' QB':'未查询';}
+function balance(){if(el('qq').value)send('balance',{qq:el('qq').value});else note('请先扫码登录');}
+function delAcc(){if(el('qq').value)send('deleteAccount',{qq:el('qq').value});}
+function saveCfg(){send('saveConfig',{index:Number(el('game').value),title:el('title').value.trim(),type:el('type').value,url:el('url').value.trim()});}
+function changePlatform(){send('browserPlatform',{value:el('browserPlatform').value});}
+function selectAccount(){showBal();send('selectAccount',{qq:el('qq').value});}
+function recharge(action='recharge'){const i=Number(el('game').value),cfg=configs[i];if(!cfg)return note('请先选择配置');if(action!=='records'&&(el('url').value.trim()!==cfg.url||el('type').value!==cfg.type))return note('链接或类型已修改，请先保存');send(action,{index:i,qq:el('qq').value,credential:el('credential').value,browserPlatform:el('browserPlatform').value});}
+function newCfg(){el('game').appendChild(option('-1','新增配置'));el('game').value='-1';el('title').value='';el('url').value='';el('type').value='充值官网';}
+function importCfg(){send('importConfigs',{text:el('configText').value});}
+send('ready');
+</script></body></html>
