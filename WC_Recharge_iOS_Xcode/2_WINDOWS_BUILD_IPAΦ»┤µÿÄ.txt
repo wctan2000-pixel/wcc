@@ -1,0 +1,13 @@
+﻿WC Recharge iOS — Windows 一键云端 Build IPA
+
+1. 双击 1_OPEN_GITHUB.cmd。
+2. GitHub 新建仓库，建议选 Private。
+3. 把本文件夹里的全部内容上传到仓库根目录（包括 .github 文件夹）。
+4. 上传并 Commit 后，点仓库顶部 Actions。
+5. 左边点 Build WC Recharge IPA。
+6. 点 Run workflow -> Run workflow。
+7. 等待绿色勾完成。
+8. 打开这次运行记录，在 Artifacts 下载 WCRechargeIOS-unsigned-IPA。
+9. 解压后得到 WCRechargeIOS-unsigned.ipa。
+
+注意：这是未签名 IPA，需要你之后自行签名。
